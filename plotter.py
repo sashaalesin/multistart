@@ -1,8 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-from test_functions import f
-
 COLORS = [
     'darkblue',
     'darkcyan',
@@ -100,7 +98,7 @@ COLORS = [
 ]
 
 
-def plot_surface(name, bounds, ax, dim):
+def plot_surface(func, bounds, ax, dim):
     x = np.arange(*bounds[0], 0.01)
     if dim == 2:
         y = np.arange(*bounds[1], 0.01)
@@ -108,15 +106,15 @@ def plot_surface(name, bounds, ax, dim):
         xy = np.stack([xgrid, ygrid])
 
         ax.view_init(45, -45)
-        ax.plot_surface(xgrid, ygrid, f[name](xy), cmap='terrain')
+        ax.plot_surface(xgrid, ygrid, func(xy), cmap='terrain')
         ax.set_xlabel('x')
         ax.set_ylabel('y')
-        ax.set_zlabel(f'{name}(x, y)')
+        ax.set_zlabel(f'{func}(x, y)')
     elif dim == 1:
-        y = np.array([f[name]([x_coord]) for x_coord in x])
+        y = np.array([func([x_coord]) for x_coord in x])
         ax.plot(x, y)
         ax.set_xlabel('x')
-        ax.set_ylabel(f'{name}(x)')
+        ax.set_ylabel(f'{func}(x)')
 
 
 def plot_points(result, bounds, axs):
@@ -128,7 +126,7 @@ def plot_points(result, bounds, axs):
     if dim == 1:
         coords.append([0] * n)
 
-    axs[0].scatter(*coords)
+    axs[0].scatter(*coords, s=50)
     axs[0].set_title(f"Исходных точек: {n}")
     axs[0].set_ylabel(result['sequenceName'])
 
@@ -153,6 +151,7 @@ def plot_points(result, bounds, axs):
             axs[i].scatter(
                 *coords,
                 c=COLORS[j],
+                s=50,
             )
 
             for min_point in min_points_of_this_cluster:
@@ -164,7 +163,7 @@ def plot_points(result, bounds, axs):
                     *coords,
                     marker='*',
                     c=COLORS[j],
-                    s=200,
+                    s=150,
                 )
 
         axs[i].set_xlim(bounds[0])
@@ -173,14 +172,13 @@ def plot_points(result, bounds, axs):
         axs[i].set_title(
             f"{i}. {len(result[i]['localMinimums'])} лок.мин. => {number_of_clusters} кл-ов => {number_of_min_points} точек"
         )
-        # axs[i].set_aspect('equal')
 
         number_of_axs += 1
 
     axs[-1].set_xlabel(f"Ответ: {result['answer']}")
 
 
-def plot_result(result, name, bounds, points=False, surface=False):
+def plot_result(result, func, bounds, points=False, surface=False):
     if points or surface:
         dim = result['dim']
         number_of_iteration = result['numberOfIteration']
@@ -208,7 +206,7 @@ def plot_result(result, name, bounds, points=False, surface=False):
 
                 plot_points(result, bounds, axes)
             else:
-                print('Построить точки можно только для 2d и 3d областей')
+                print('\nОшибка визуализации: Размерность точек больше 3.\n')
 
         if surface:
             if dim == 1 or dim == 2:
@@ -222,8 +220,8 @@ def plot_result(result, name, bounds, points=False, surface=False):
                     )
                 )
 
-                plot_surface(name, bounds, axes[-1], dim)
+                plot_surface(func, bounds, axes[-1], dim)
             else:
-                print('\nПредупреждение: Построить функцию можно только для 2d и 3d!\n')
+                print('\nОшибка визуализации: Размерность функции больше 3.\n')
 
         plt.show()

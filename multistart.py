@@ -4,32 +4,29 @@ from sklearn.cluster import KMeans
 
 from plotter import plot_result
 from printer import print_result
-from sequences import s
-from test_functions import bounds2d, bounds3d, bounds4d, f
+from sequences import seq
+from test_functions import (Ackley, Easom, Himmelblau, Rastrigin, Rosenbrock,
+                            Sphere)
 
 MAX_ITERATION_COUNT = 10
+ROUND = 5
 
 
-def min_point(cluster, func_name):
+def get_min_points_from_cluster(cluster, func):
     # Находит точки из кластера,
     # в которых функция принимает минимальное значение
-    funcs_in_points = list(map(
-        lambda point: f[func_name](point),
+    funcs_in_points = np.array(list(map(
+        lambda point: func(point),
         cluster
-    ))
-    idx_of_min = [0]
-    min_value = funcs_in_points[0]
-    for idx in range(1, len(funcs_in_points)):
-        value = funcs_in_points[idx]
-        if value < min_value:
-            min_value = value
-            idx_of_min = [idx]
-        elif value == min_value:
-            idx_of_min.append(idx)
-    return [cluster[idx] for idx in idx_of_min]
+    )))
+    min_value = funcs_in_points.min()
+    return [
+        cluster[i] for i in range(len(cluster))
+        if funcs_in_points[i] == min_value
+    ]
 
 
-def get_clusters(points, func_name, n_clusters=2):
+def get_clusters(points, func, n_clusters=2):
     # Разбивает точки на кластеры
     km = KMeans(n_clusters=n_clusters, max_iter=100)
     km.fit(points)
@@ -38,12 +35,12 @@ def get_clusters(points, func_name, n_clusters=2):
     for i in range(len(points)):
         clusters[km.labels_[i]].append(np.array(points[i]))
 
-    min_points = []
-    for cluster in clusters:
-        min_points.append(min_point(cluster, func_name))
+    min_points = [
+        get_min_points_from_cluster(cluster, func)
+        for cluster in clusters
+    ]
 
     return {
-        'centroids': km.cluster_centers_,
         'clusters': list(map(lambda cluster: np.array(cluster), clusters)),
         'minPoints': min_points,
     }
@@ -51,20 +48,23 @@ def get_clusters(points, func_name, n_clusters=2):
 
 def merge_lists_and_get_unique(lst):
     # Системная функция для слияния массивов и получения уникальных точек
-    return np.unique([p for cluster in lst for p in cluster], axis=0)
+    return np.unique(
+        [np.round(p, ROUND) for cluster in lst for p in cluster],
+        axis=0
+    )
 
 
 def multistart(**kwargs):
     # Метод мультистарт
     # Получаем входные данные
-    func_name = kwargs['func_name']
+    func = kwargs['func']
     sequence_name = kwargs['sequence_name']
     dim = kwargs.get('dim') or 2
     n = kwargs.get('n') or 32
-    bounds = kwargs.get('bounds') or [[0, 1] for _ in range(dim)]
+    bounds = kwargs.get('bounds') or func.bounds
     n_clusters = kwargs.get('n_clusters') or 8
     # Генерируем точки
-    points = s[sequence_name](dim=dim, n=n, bounds=bounds)
+    points = seq(sequence_name=sequence_name, dim=dim, n=n, bounds=bounds)
 
     result = {
         'dim': dim,
@@ -83,7 +83,7 @@ def multistart(**kwargs):
         local_minimums = np.unique(
             [
                 minimize(
-                    f[func_name],
+                    func,
                     x0,
                     method='Nelder-Mead',
                     tol=0.01,
@@ -95,7 +95,7 @@ def multistart(**kwargs):
 
         clustered_local_minimums = get_clusters(
             local_minimums,
-            func_name,
+            func,
             n_clusters=number_of_clusters
         )
         result[iteration_counter][
@@ -115,7 +115,7 @@ def multistart(**kwargs):
             np.round(number_of_clusters * (len_min_points / len_points))
         ) + 1
 
-        result['answer'] = [[np.round(x, 5) for x in p] for p in points]
+        result['answer'] = [[np.round(x, ROUND) for x in p] for p in points]
 
         if len_points == len_min_points and number_of_clusters != 1:
             number_of_clusters = 1
@@ -132,7 +132,7 @@ def multistart(**kwargs):
     if kwargs.get('plot_points') or kwargs.get('plot_surface'):
         plot_result(
             result,
-            func_name,
+            func,
             bounds,
             points=kwargs.get('plot_points'),
             surface=kwargs.get('plot_surface'),
@@ -141,25 +141,26 @@ def multistart(**kwargs):
     return result
 
 
+# Размерность области поиска
+dim = 1
 # Имя функции (доступные в файле test_functions.py)
-func_name = 'rastrigin'
+func = Rastrigin(dim)
 # Имя последовательности (доступные в файле sequences.py)
 sequence_name = 'halton'
 
 result = multistart(
-    func_name=func_name,
+    func=func,
     sequence_name=sequence_name,
-    # Размерность
-    dim=1,
+    dim=dim,
     # Количество точек
     n=32,
     # Область определения (поиска) (описаны в test_functions.py)
-    bounds=bounds2d[func_name],
+    bounds=None,
     # Начальное число кластеров
     n_clusters=10,
     # Строить ли точки (Доступно только для 2d и 3d областей (3d и 4d функций))
     plot_points=True,
-    # Строить ли функции (Доступно только для 3d функций)
+    # Строить ли функции (Доступно только для 2d и 3d функций)
     plot_surface=True,
     # Выводить ли ответ в консоль
     print=False,

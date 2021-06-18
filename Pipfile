@@ -12,9 +12,8 @@ autopep8 = "*"
 flake8 = "*"
 numpy = "*"
 matplotlib = "*"
-sobol-seq = {git = "https://github.com/naught101/sobol_seq",ref = "v0.2.0"}
 sklearn = "*"
-cvxopt = "*"
+chaospy = "*"
 
 [requires]
 python_version = "3.7"
